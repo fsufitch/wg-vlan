@@ -13,8 +13,6 @@ type GenerateCommand struct {
 	fAddress    *cli.StringFlag
 	fPort       *cli.UintFlag
 	fPrivateKey *cli.StringFlag
-	// fPreSharedKey *cli.StringFlag
-	// fDNS          *cli.StringSliceFlag
 }
 
 func mustHostname() string {
@@ -59,7 +57,7 @@ func (c *GenerateCommand) Command() *cli.Command {
 	return &cli.Command{
 		Name:        "generate",
 		Aliases:     []string{"gen"},
-		Description: "generate a new empty Wireguard peer configuration to FILE; pass - to print to STDOUT",
+		Description: "generate a new empty Wireguard peer configuration to STDOUT",
 		Args:        true,
 		ArgsUsage:   "FILE",
 		Action:      c.Action,
@@ -69,12 +67,8 @@ func (c *GenerateCommand) Command() *cli.Command {
 }
 
 func (c GenerateCommand) Action(ctx *cli.Context) error {
-	file := ctx.Args().First()
-	if file == "" {
-		return cli.Exit("command requires FILE as an argument; use - to output to STDOUT", 1)
-	}
-	if ctx.Args().Len() > 1 {
-		return cli.Exit(fmt.Errorf("extraneous arguments received: %v", ctx.Args().Slice()[1:]), 1)
+	if ctx.Args().Len() > 0 {
+		return cli.Exit(fmt.Errorf("extraneous arguments received: %v", ctx.Args()), 1)
 	}
 
 	iniFile, _ := NewWireguardInterfaceIni(nil)
