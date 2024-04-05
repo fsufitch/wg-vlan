@@ -18,22 +18,22 @@ func (c *ClientAddCommand) Command() *cli.Command {
 		Action:  c.Action,
 		Flags: []cli.Flag{
 			&cli.PathFlag{
-				Name:        "f",
-				Aliases:     []string{"config", "config-file"},
+				Name:        "vlan-config",
+				Aliases:     []string{"config", "c"},
 				Usage:       "YAML config file to write to",
 				Required:    true,
 				Destination: &c.fConfigFile,
 			},
 			&cli.StringFlag{
-				Name:        "n",
-				Aliases:     []string{"name", "client-name"},
+				Name:        "client-name",
+				Aliases:     []string{"name", "n"},
 				Usage:       "name of client to add",
 				Required:    true,
 				Destination: &c.fClientName,
 			},
 			&cli.StringFlag{
-				Name:        "pub",
-				Aliases:     []string{"public-key"},
+				Name:        "public-key",
+				Aliases:     []string{"pub"},
 				Usage:       "public key of the client",
 				DefaultText: "generate a new private/public pair",
 				Destination: &c.fPublicKey,
