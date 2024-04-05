@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/skip2/go-qrcode"
 	"gopkg.in/ini.v1"
 )
 
@@ -156,4 +157,41 @@ func (peer *WireguardInterfaceIni_Peer) PresharedKey() (*ecdh.PublicKey, error) 
 
 func (peer *WireguardInterfaceIni_Peer) SetPresharedKey(presharedKey *ecdh.PublicKey) {
 	peer.Key("PresharedKey").SetValue(KeyToBase64(presharedKey))
+}
+
+func (iniFile *WireguardInterfaceIni) Write(w io.Writer) error {
+	_, err := iniFile.File.WriteTo(w)
+	return fmt.Errorf("failed to write ini: %w", err)
+}
+
+func (iniFile *WireguardInterfaceIni) ToText() (string, error) {
+	buf := strings.Builder{}
+	if err := iniFile.Write(&buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func (iniFile *WireguardInterfaceIni) ToQRText(inverse bool, small bool) (string, error) {
+	text, err := iniFile.ToText()
+	if err != nil {
+		return "", err
+	}
+
+	qr, err := qrcode.New(text, qrcode.Medium)
+	if err != nil {
+		return "", fmt.Errorf("failed to create QR: %w", err)
+	}
+	if small {
+		return qr.ToSmallString(inverse), nil
+	}
+	return qr.ToString(inverse), nil
+}
+
+func ServerIni(vlan *VLAN) (*WireguardInterfaceIni, error) {
+	return nil, nil
+}
+
+func ClientIni(vlan *VLAN, clientName string) (*WireguardInterfaceIni, error) {
+	return nil, nil
 }

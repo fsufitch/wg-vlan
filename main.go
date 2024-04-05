@@ -10,6 +10,7 @@ import (
 func main() {
 	generateCommand := InitializeCommand{}
 	clientAddCommand := ClientAddCommand{}
+	printIniCommand := PrintIniCommand{}
 
 	var app = &cli.App{
 		Name:        "wg-conf",
@@ -19,6 +20,7 @@ func main() {
 		Commands: []*cli.Command{
 			generateCommand.Command(),
 			clientAddCommand.Command(),
+			printIniCommand.Command(),
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
