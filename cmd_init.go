@@ -1,9 +1,6 @@
 package main
 
 import (
-	"os"
-
-	"github.com/go-yaml/yaml"
 	"github.com/urfave/cli/v2"
 )
 
@@ -80,7 +77,6 @@ func (c *InitializeCommand) Action(ctx *cli.Context) error {
 
 	if c.fConfigFile == "" {
 		cLog.Fatalf("error: YAML path required")
-
 	}
 
 	if c.fPrivateKey == "" {
@@ -118,17 +114,9 @@ func (c *InitializeCommand) Action(ctx *cli.Context) error {
 		client.EnsurePath(c.fConfigFile)
 	}
 
-	fp, err := os.Create(c.fConfigFile)
-	if err != nil {
-		cLog.Fatalf("error: %v", err)
+	if err := vlan.WriteTo(c.fConfigFile); err != nil {
+		cLog.Fatalf("error: failed to write config file: %s", err.Error())
 	}
-	enc := yaml.NewEncoder(fp)
-	if err := enc.Encode(vlan); err != nil {
-		cLog.Fatalf("error: %v", err)
-	}
-
-	enc.Close()
-	fp.Close()
 
 	cLog.Printf("wrote configuration to: %s", c.fConfigFile)
 

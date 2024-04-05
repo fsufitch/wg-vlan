@@ -4,10 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"path"
 	"strings"
 
-	_ "github.com/go-yaml/yaml"
+	"github.com/go-yaml/yaml"
 )
 
 const DEFAULT_SERVER_NAME = "wg-vlan"
@@ -87,6 +88,10 @@ func (vlan VLAN) Validate() (vWarnings []string, vError error) {
 }
 
 func (vlan *VLAN) NewClient(name string, privateKeyBase64 string) (*VLANClient, error) {
+	if name == "" {
+		return nil, errors.New("client may not have an empty name")
+	}
+
 	for _, client := range vlan.Clients {
 		if client.PeerName == name {
 			return nil, fmt.Errorf("name is already in use: %s", name)
@@ -110,6 +115,39 @@ func (vlan *VLAN) NewClient(name string, privateKeyBase64 string) (*VLANClient, 
 		PeerName:   name,
 		Network:    clientIP.String(),
 		PrivateKey: privateKeyBase64,
+	}
+
+	if _, err := client.EnsurePublicKey(); err != nil {
+		return nil, err
+	}
+	if _, err := client.EnsurePresharedKey(); err != nil {
+		return nil, err
+	}
+
+	vlan.Clients = append(vlan.Clients, client)
+	return client, nil
+}
+
+func (vlan *VLAN) NewClientPublic(name string, publicKeyBase64 string) (*VLANClient, error) {
+	if name == "" {
+		return nil, errors.New("client may not have an empty name")
+	}
+
+	for _, client := range vlan.Clients {
+		if client.PeerName == name {
+			return nil, fmt.Errorf("name is already in use: %s", name)
+		}
+	}
+
+	clientIP, err := vlan.NextAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	client := &VLANClient{
+		PeerName:  name,
+		Network:   clientIP.String(),
+		PublicKey: publicKeyBase64,
 	}
 
 	if _, err := client.EnsurePublicKey(); err != nil {
@@ -296,6 +334,50 @@ func DefaultVLAN(yamlPath string) (*VLAN, error) {
 	vlan.Server.EnsurePath(yamlPath)
 	if _, err := vlan.Server.EnsurePublicKey(); err != nil {
 		return nil, fmt.Errorf("failed generating public key: %w", err)
+	}
+
+	return vlan, nil
+}
+
+func (vlan *VLAN) WriteTo(path string) error {
+	fp, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	enc := yaml.NewEncoder(fp)
+	if err := enc.Encode(vlan); err != nil {
+		return err
+	}
+
+	if err := enc.Close(); err != nil {
+		return err
+	}
+	if err := fp.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func VLANFromFile(path string) (*VLAN, error) {
+	fp, err := os.Open(path)
+	defer func() {
+		if err := fp.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open config file (%s): %w", path, err)
+	}
+
+	vlan := &VLAN{}
+	if err := yaml.NewDecoder(fp).Decode(vlan); err != nil {
+		return nil, fmt.Errorf("failed to decode config file (%s): %w", path, err)
+	}
+
+	vlan.Server.EnsureInterfaceName()
+	vlan.Server.EnsurePath(path)
+	if _, err := vlan.Server.EnsurePublicKey(); err != nil {
+		return nil, fmt.Errorf("invalid config file (%s): %w", path, err)
 	}
 
 	return vlan, nil
