@@ -100,7 +100,7 @@ func (sec *WireguardInterfaceIni_Interface) PrivateKey() (*ecdh.PrivateKey, erro
 }
 
 func (sec *WireguardInterfaceIni_Interface) SetPrivateKey(privateKey *ecdh.PrivateKey) {
-	sec.Key("PrivateKey").SetValue(Base64Key(privateKey))
+	sec.Key("PrivateKey").SetValue(KeyToBase64(privateKey))
 }
 
 type WireguardInterfaceIni_Peer struct {
@@ -147,7 +147,7 @@ func (peer *WireguardInterfaceIni_Peer) PublicKey() (*ecdh.PublicKey, error) {
 }
 
 func (peer *WireguardInterfaceIni_Peer) SetPublicKey(publicKey *ecdh.PublicKey) {
-	peer.Key("PublicKey").SetValue(Base64Key(publicKey))
+	peer.Key("PublicKey").SetValue(KeyToBase64(publicKey))
 }
 
 func (peer *WireguardInterfaceIni_Peer) PresharedKey() (*ecdh.PublicKey, error) {
@@ -155,5 +155,5 @@ func (peer *WireguardInterfaceIni_Peer) PresharedKey() (*ecdh.PublicKey, error) 
 }
 
 func (peer *WireguardInterfaceIni_Peer) SetPresharedKey(presharedKey *ecdh.PublicKey) {
-	peer.Key("PresharedKey").SetValue(Base64Key(presharedKey))
+	peer.Key("PresharedKey").SetValue(KeyToBase64(presharedKey))
 }

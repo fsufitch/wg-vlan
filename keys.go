@@ -7,11 +7,11 @@ import (
 	"errors"
 )
 
-type ByteableKey interface {
+type Byteable interface {
 	Bytes() []byte
 }
 
-func Base64Key(b ByteableKey) string {
+func KeyToBase64(b Byteable) string {
 	return base64.StdEncoding.EncodeToString(b.Bytes())
 }
 
@@ -31,7 +31,7 @@ func WireguardPrivateKey(b64key string) (*ecdh.PrivateKey, error) {
 	if b64key == "" {
 		return nil, errors.New("cannot parse private key: no key specified")
 	}
-	keyBytes, err := base64.RawStdEncoding.DecodeString(b64key)
+	keyBytes, err := base64.StdEncoding.DecodeString(b64key)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func WireguardPublicKey(b64key string) (*ecdh.PublicKey, error) {
 	if b64key == "" {
 		return nil, errors.New("cannot parse public key: no key specified")
 	}
-	keyBytes, err := base64.RawStdEncoding.DecodeString(b64key)
+	keyBytes, err := base64.StdEncoding.DecodeString(b64key)
 	if err != nil {
 		return nil, err
 	}

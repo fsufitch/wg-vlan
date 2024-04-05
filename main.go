@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	generateCommand := NewGenerateCommand()
+	generateCommand := InitializeCommand{}
+	peerAddCommand := NewPeerGenerateCommand()
 
 	var app = &cli.App{
 		Name:        "wg-conf",
@@ -17,6 +18,7 @@ func main() {
 		Suggest:     true,
 		Commands: []*cli.Command{
 			generateCommand.Command(),
+			peerAddCommand.Command(),
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
