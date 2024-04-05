@@ -1,4 +1,4 @@
-module github.com/fsufitch/wg-conf
+module github.com/fsufitch/wg-vlan
 
 go 1.22.1
 
