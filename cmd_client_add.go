@@ -67,6 +67,8 @@ func (c *ClientAddCommand) Action(ctx *cli.Context) error {
 		cLog.Fatalf("failed to create client: %s", err.Error())
 	}
 
+	newClient.EnsurePath(c.fConfigFile)
+
 	cLog.Printf("successfully created client: %s - %s", newClient.PeerName, newClient.Network)
 
 	if err := vlan.WriteTo(c.fConfigFile); err != nil {

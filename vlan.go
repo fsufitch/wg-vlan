@@ -76,7 +76,7 @@ func (vlan VLAN) Validate() (vWarnings []string, vError error) {
 		if clError != nil {
 			vErrors = append(vErrors, fmt.Errorf("client[%d]: %w", idx, clError))
 		}
-		if _, ok := uniqueClientNames[client.PeerName]; !ok && client.PeerName != "" {
+		if _, ok := uniqueClientNames[client.PeerName]; ok && client.PeerName != "" {
 			vErrors = append(vErrors, fmt.Errorf("client[%d]: non-unique client name", idx))
 		}
 	}
@@ -189,7 +189,7 @@ func (srv *VLANServer) EnsurePath(yamlFile string) string {
 		return srv.ConfigINIPath
 	}
 	srv.EnsureInterfaceName()
-	srv.ConfigINIPath = path.Join(path.Dir(yamlFile), fmt.Sprintf("%s.conf", srv.InterfaceName))
+	srv.ConfigINIPath = fmt.Sprintf("%s.conf", srv.InterfaceName)
 	return srv.ConfigINIPath
 }
 
@@ -272,8 +272,18 @@ func (cl *VLANClient) EnsurePath(yamlFile string) string {
 	if cl.ConfigINIPath != "" {
 		return cl.ConfigINIPath
 	}
-	cl.ConfigINIPath = path.Join(path.Dir(yamlFile), "wg-clients", fmt.Sprintf("%s.conf", cl.PeerName))
+	cl.ConfigINIPath = path.Join("wg-clients", fmt.Sprintf("%s.conf", cl.PeerName))
 	return cl.ConfigINIPath
+}
+
+func (cl VLANClient) CIDR() (net.IP, *net.IPNet, error) {
+	if strings.Contains(cl.Network, "/") {
+		// When it's a proper CIDR, this is easy
+		return net.ParseCIDR(cl.Network)
+	}
+
+	// When no CIDR, add /32; IPv6 has unknown behavior
+	return net.ParseCIDR(cl.Network + "/32")
 }
 
 func (cl VLANClient) Validate() (vWarnings []string, vError error) {
@@ -281,7 +291,8 @@ func (cl VLANClient) Validate() (vWarnings []string, vError error) {
 	if cl.PeerName == "" {
 		vErrors = append(vErrors, fmt.Errorf("client name unset"))
 	}
-	if _, _, err := net.ParseCIDR(cl.Network); err != nil {
+
+	if _, _, err := cl.CIDR(); err != nil {
 		vErrors = append(vErrors, fmt.Errorf("client network invalid (%s): %w", cl.Network, err))
 	}
 
