@@ -11,7 +11,7 @@ type InitializeCommand struct {
 	fConfigFile string
 	fEndpoint   string
 	fNetwork    string
-	fInterface  string
+	fPeerName   string
 	fListenPort uint
 	fPrivateKey string
 	fClients    cli.StringSlice
@@ -32,10 +32,11 @@ func (c *InitializeCommand) Command() *cli.Command {
 				Destination: &c.fConfigFile,
 			},
 			&cli.StringFlag{
-				Name:    "name",
-				Aliases: []string{"n"},
-				Usage:   "peer name of the server",
-				Value:   "wg-vlan",
+				Name:        "name",
+				Aliases:     []string{"n"},
+				Usage:       "peer name of the server",
+				Value:       "wg-vlan",
+				Destination: &c.fPeerName,
 			},
 			&cli.StringFlag{
 				Name:        "endpoint",
@@ -94,7 +95,7 @@ func (c *InitializeCommand) Action(ctx *cli.Context) error {
 		PublicEndpoint: c.fEndpoint,
 		KeepAlive:      DEFAULT_KEEP_ALIVE,
 		Server: VLANServer{
-			PeerName:   c.fInterface,
+			PeerName:   c.fPeerName,
 			ListenPort: c.fListenPort,
 			Network:    c.fNetwork,
 			PrivateKey: c.fPrivateKey,

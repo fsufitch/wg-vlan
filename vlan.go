@@ -409,11 +409,6 @@ func (vlan VLAN) ClientIni(clientName string) (*ini.File, error) {
 
 func VLANFromFile(path string, warningLogger *log.Logger) (*VLAN, error) {
 	fp, err := os.Open(path)
-	defer func() {
-		if err := fp.Close(); err != nil {
-			panic(err)
-		}
-	}()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config file (%s): %w", path, err)
 	}
@@ -421,6 +416,10 @@ func VLANFromFile(path string, warningLogger *log.Logger) (*VLAN, error) {
 	vlan := &VLAN{}
 	if err := yaml.NewDecoder(fp).Decode(vlan); err != nil {
 		return nil, fmt.Errorf("failed to decode config file (%s): %w", path, err)
+	}
+
+	if err := fp.Close(); err != nil {
+		return nil, err
 	}
 
 	vWarnings, vError := vlan.Validate()
