@@ -45,16 +45,9 @@ func (c *ClientAddCommand) Command() *cli.Command {
 func (c *ClientAddCommand) Action(ctx *cli.Context) error {
 	cLog := getLogger(ctx)
 
-	vlan, err := VLANFromFile(c.fConfigFile)
+	vlan, err := VLANFromFile(c.fConfigFile, cLog)
 	if err != nil {
 		cLog.Fatalf("error: %s", err.Error())
-	}
-	vWarnings, vError := vlan.Validate()
-	for _, w := range vWarnings {
-		cLog.Printf("config warning: %s", w)
-	}
-	if vError != nil {
-		cLog.Fatalf("config error: %s", vError.Error())
 	}
 
 	var newClient *VLANClient

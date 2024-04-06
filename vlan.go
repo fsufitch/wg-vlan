@@ -3,12 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"path"
 	"strings"
 
 	"github.com/go-yaml/yaml"
+	"gopkg.in/ini.v1"
 )
 
 const DEFAULT_SERVER_NAME = "wg-vlan"
@@ -24,7 +26,7 @@ type VLAN struct {
 }
 
 func (vlan VLAN) NextAddress() (*net.IP, error) {
-	serverIP, vlanNetwork, err := net.ParseCIDR(vlan.Server.Network)
+	serverIP, vlanNetwork, err := parseCIDR(vlan.Server.Network)
 	if err != nil {
 		return nil, err
 	}
@@ -32,17 +34,12 @@ func (vlan VLAN) NextAddress() (*net.IP, error) {
 	takenIPs := []net.IP{serverIP}
 	takenNets := []net.IPNet{}
 	for _, client := range vlan.Clients {
-		if strings.Contains(client.Network, "/") {
-			clientIP, clientNet, err := net.ParseCIDR(client.Network)
-			if err != nil {
-				return nil, err
-			}
-			takenIPs = append(takenIPs, clientIP)
-			takenNets = append(takenNets, *clientNet)
-		} else {
-			clientIP := net.ParseIP(client.Network)
-			takenIPs = append(takenIPs, clientIP)
+		clientIP, clientNet, err := parseCIDR(client.Network)
+		if err != nil {
+			return nil, err
 		}
+		takenIPs = append(takenIPs, clientIP)
+		takenNets = append(takenNets, *clientNet)
 	}
 
 	return pickNextIP(*vlanNetwork, takenIPs, takenNets)
@@ -312,6 +309,10 @@ func (cl VLANClient) Validate() (vWarnings []string, vError error) {
 		vErrors = append(vErrors, fmt.Errorf("client public key mismatch: got '%s', expected '%s'", cl.PublicKey, expectPublicKey))
 	}
 
+	if cl.PresharedKey == "" {
+		vWarnings = append(vWarnings, "client preshared key unset; this is unsafe")
+	}
+
 	if cl.ConfigINIPath == "" {
 		vWarnings = append(vWarnings, "config INI path unset")
 	}
@@ -350,7 +351,7 @@ func DefaultVLAN(yamlPath string) (*VLAN, error) {
 	return vlan, nil
 }
 
-func (vlan *VLAN) WriteTo(path string) error {
+func (vlan VLAN) WriteTo(path string) error {
 	fp, err := os.Create(path)
 	if err != nil {
 		return err
@@ -369,7 +370,99 @@ func (vlan *VLAN) WriteTo(path string) error {
 	return nil
 }
 
-func VLANFromFile(path string) (*VLAN, error) {
+func (vlan VLAN) ServerIni() (*ini.File, error) {
+	iniFile := ini.Empty(ini.LoadOptions{AllowNonUniqueSections: true})
+
+	iniFile.Section("Interface").Comment = fmt.Sprintf("# VLAN Server: %s", vlan.Server.PeerName)
+
+	iniFile.Section("Interface").Key("Address").SetValue(vlan.Server.Network)
+	iniFile.Section("Interface").Key("ListenPort").SetValue(fmt.Sprintf("%d", vlan.Server.ListenPort))
+	iniFile.Section("Interface").Key("PrivateKey").SetValue(vlan.Server.PrivateKey)
+
+	for _, client := range vlan.Clients {
+		sec, _ := iniFile.NewSection("Peer")
+		sec.Comment = fmt.Sprintf("# VLAN Client: %s", client.PeerName)
+
+		clientIP, err := ensureIPWithCIDR(client.Network)
+		if err != nil {
+			return nil, fmt.Errorf("peer failed '%s': %w", client.PeerName, err)
+		}
+		sec.Key("AllowedIPs").SetValue(clientIP)
+
+		publicKey, err := client.EnsurePublicKey()
+		if err != nil {
+			return nil, fmt.Errorf("peer failed '%s': %w", client.PeerName, err)
+		}
+		sec.Key("PublicKey").SetValue(publicKey)
+
+		if client.PresharedKey != "" {
+			sec.Key("PresharedKey").SetValue(client.PresharedKey)
+		}
+
+		if vlan.KeepAlive != 0 {
+			sec.Key("PersistentKeepalive").SetValue(fmt.Sprintf("%d", vlan.KeepAlive))
+		}
+	}
+
+	return iniFile, nil
+}
+
+func (vlan VLAN) ClientIni(clientName string) (*ini.File, error) {
+	var client *VLANClient
+	for _, cl := range vlan.Clients {
+		if cl.PeerName == clientName {
+			client = cl
+			break
+		}
+	}
+	if client == nil {
+		return nil, fmt.Errorf("no such client: %s", clientName)
+	}
+	if client.PrivateKey == "" {
+		return nil, fmt.Errorf("client has no private key defined: %s", clientName)
+	}
+
+	iniFile := ini.Empty(ini.LoadOptions{AllowNonUniqueSections: true})
+	iniFile.Section("Interface").Comment = fmt.Sprintf("# VLAN Client: %s", client.PeerName)
+	clientIP, err := ensureIPWithCIDR(client.Network)
+	if err != nil {
+		return nil, fmt.Errorf("client '%s' had invalid network '%s': %w", clientName, client.Network, err)
+	}
+	iniFile.Section("Interface").Key("Address").SetValue(clientIP)
+	iniFile.Section("Interface").Key("PrivateKey").SetValue(client.PrivateKey)
+
+	serverSection, _ := iniFile.NewSection("Peer")
+	serverSection.Comment = fmt.Sprintf("# VLAN Server: %s", vlan.Server.PeerName)
+
+	if vlan.PublicEndpoint == "" {
+		return nil, errors.New("vlan has no configured public endpoint")
+	}
+	serverSection.Key("Endpoint").SetValue(vlan.PublicEndpoint)
+
+	serverIP, err := ensureIPWithCIDR(vlan.Server.Network)
+	if err != nil {
+		return nil, fmt.Errorf("server had invalid network '%s': %w", vlan.Server.Network, err)
+	}
+	serverSection.Key("AllowedIPs").SetValue(serverIP)
+
+	serverPublicKey, err := vlan.Server.EnsurePublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server public key: %w", err)
+	}
+	serverSection.Key("PublicKey").SetValue(serverPublicKey)
+
+	if client.PresharedKey != "" {
+		serverSection.Key("PresharedKey").SetValue(client.PresharedKey)
+	}
+
+	if vlan.KeepAlive != 0 {
+		serverSection.Key("PersistentKeepalive").SetValue(fmt.Sprintf("%d", vlan.KeepAlive))
+	}
+
+	return iniFile, nil
+}
+
+func VLANFromFile(path string, warningLogger *log.Logger) (*VLAN, error) {
 	fp, err := os.Open(path)
 	defer func() {
 		if err := fp.Close(); err != nil {
@@ -385,11 +478,34 @@ func VLANFromFile(path string) (*VLAN, error) {
 		return nil, fmt.Errorf("failed to decode config file (%s): %w", path, err)
 	}
 
-	vlan.Server.EnsureInterfaceName()
-	vlan.Server.EnsurePath(path)
-	if _, err := vlan.Server.EnsurePublicKey(); err != nil {
-		return nil, fmt.Errorf("invalid config file (%s): %w", path, err)
+	vWarnings, vError := vlan.Validate()
+	for _, w := range vWarnings {
+		if warningLogger != nil {
+			warningLogger.Printf("config warning: %s", w)
+		}
+	}
+	if vError != nil {
+		return nil, vError
 	}
 
 	return vlan, nil
+}
+
+func parseCIDR(address string) (net.IP, *net.IPNet, error) {
+	if strings.Contains(address, "/") {
+		// When it's a proper CIDR, this is easy
+		return net.ParseCIDR(address)
+	}
+
+	// When no CIDR, add /32; IPv6 has unknown behavior
+	return net.ParseCIDR(address + "/32")
+}
+
+func ensureIPWithCIDR(address string) (string, error) {
+	ip, ipNet, err := parseCIDR(address)
+	if err != nil {
+		return "", err
+	}
+	ipNet.IP = ip
+	return ipNet.String(), nil
 }

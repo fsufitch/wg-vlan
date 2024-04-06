@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
@@ -20,7 +21,11 @@ func getLogger(ctx *cli.Context, colorAttrs ...color.Attribute) *log.Logger {
 		colorAttrs = []color.Attribute{color.FgYellow}
 	}
 	c := color.New(colorAttrs...)
-	c.SetWriter(ctx.App.ErrWriter)
+	if ctx != nil {
+		c.SetWriter(ctx.App.ErrWriter)
+	} else {
+		c.SetWriter(os.Stderr)
+	}
 	wr := colorWriter{c}
 
 	return log.New(&wr, "", log.Ldate|log.Ltime|log.Lshortfile)
