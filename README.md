@@ -100,6 +100,8 @@ PresharedKey        = P6xB5nPjyqKwbEUrqOYrKiupBwOzDsqy1Zbjs4GT1u4=
 PersistentKeepalive = 25
 ```
 
+You can also export these configurations as QR codes, using `--format qr`.
+
 Use these files in the Wireguard configuration of the respective relevant computers, and you will have a VLAN-like network!
 
 ## YAML Configuration Schema
