@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 
@@ -8,25 +9,28 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-type colorWriter struct {
-	*color.Color
+type coloredWriter struct {
+	Color  *color.Color
+	Writer io.Writer
 }
 
-func (w *colorWriter) Write(p []byte) (n int, err error) {
-	return w.Print(string(p))
+func (cw coloredWriter) Write(data []byte) (int, error) {
+	return cw.Writer.Write([]byte(cw.Color.Sprintf(string(data))))
 }
 
 func getLogger(ctx *cli.Context, colorAttrs ...color.Attribute) *log.Logger {
 	if len(colorAttrs) == 0 {
 		colorAttrs = []color.Attribute{color.FgYellow}
 	}
-	c := color.New(colorAttrs...)
-	if ctx != nil {
-		c.SetWriter(ctx.App.ErrWriter)
-	} else {
-		c.SetWriter(os.Stderr)
+
+	wr := coloredWriter{
+		Color:  color.New(colorAttrs...),
+		Writer: os.Stderr,
 	}
-	wr := colorWriter{c}
+
+	if ctx != nil {
+		wr.Writer = ctx.App.ErrWriter
+	}
 
 	return log.New(&wr, "", log.Ldate|log.Ltime|log.Lshortfile)
 }
