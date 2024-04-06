@@ -161,8 +161,8 @@ type VLANServer struct {
 	ListenPort     uint              `yaml:"listen_port"`
 	Network        string            `yaml:"network"`
 	PrivateKey     string            `yaml:"private_key"`
-	PublicKey      string            `yaml:"public_key"`
-	InterfaceExtra map[string]string `yaml:"extra"`
+	PublicKey      string            `yaml:"public_key,omitempty"`
+	InterfaceExtra map[string]string `yaml:"extra,omitempty"`
 }
 
 func (srv *VLANServer) EnsurePublicKey() (string, error) {
@@ -210,10 +210,10 @@ func (srv VLANServer) Validate() (vWarnings []string, vError error) {
 type VLANClient struct {
 	PeerName       string            `yaml:"peer_name"`
 	Network        string            `yaml:"network"`
-	PrivateKey     string            `yaml:"private_key"`
+	PrivateKey     string            `yaml:"private_key,omitempty"`
 	PublicKey      string            `yaml:"public_key"`
-	PresharedKey   string            `yaml:"preshared_key"`
-	InterfaceExtra map[string]string `yaml:"extra"`
+	PresharedKey   string            `yaml:"preshared_key,omitempty"`
+	InterfaceExtra map[string]string `yaml:"extra,omitempty"`
 }
 
 func (cl *VLANClient) EnsurePublicKey() (string, error) {
@@ -316,6 +316,10 @@ func (vlan VLAN) ServerIni() (*ini.File, error) {
 	iniFile.Section("Interface").Key("ListenPort").SetValue(fmt.Sprintf("%d", vlan.Server.ListenPort))
 	iniFile.Section("Interface").Key("PrivateKey").SetValue(vlan.Server.PrivateKey)
 
+	for k, v := range vlan.Server.InterfaceExtra {
+		iniFile.Section("Interface").Key(k).SetValue(v)
+	}
+
 	for _, client := range vlan.Clients {
 		sec, _ := iniFile.NewSection("Peer")
 		sec.Comment = fmt.Sprintf("# VLAN Client: %s", client.PeerName)
@@ -367,6 +371,10 @@ func (vlan VLAN) ClientIni(clientName string) (*ini.File, error) {
 	}
 	iniFile.Section("Interface").Key("Address").SetValue(clientIP)
 	iniFile.Section("Interface").Key("PrivateKey").SetValue(client.PrivateKey)
+
+	for k, v := range client.InterfaceExtra {
+		iniFile.Section("Interface").Key(k).SetValue(v)
+	}
 
 	serverSection, _ := iniFile.NewSection("Peer")
 	serverSection.Comment = fmt.Sprintf("# VLAN Server: %s", vlan.Server.PeerName)

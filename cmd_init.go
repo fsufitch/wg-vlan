@@ -29,6 +29,12 @@ func (c *InitializeCommand) Command() *cli.Command {
 				Destination: &c.fConfigFile,
 			},
 			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Usage:   "peer name of the server",
+				Value:   "wg-vlan",
+			},
+			&cli.StringFlag{
 				Name:        "endpoint",
 				Aliases:     []string{"e"},
 				Usage:       "public endpoint for clients to connect to",
