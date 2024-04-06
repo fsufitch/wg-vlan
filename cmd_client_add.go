@@ -19,7 +19,7 @@ func (c *ClientAddCommand) Command() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.PathFlag{
 				Name:        "vlan-config",
-				Aliases:     []string{"config", "c"},
+				Aliases:     []string{"f"},
 				Usage:       "YAML config file to write to",
 				Required:    true,
 				Destination: &c.fConfigFile,

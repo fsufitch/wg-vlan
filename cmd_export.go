@@ -18,14 +18,14 @@ type PrintIniCommand struct {
 
 func (c *PrintIniCommand) Command() *cli.Command {
 	return &cli.Command{
-		Name:        "print",
-		Description: "print Wireguard INI files",
+		Name:        "export",
+		Description: "export Wireguard INI files in multiple formats",
 		Args:        false,
 		Action:      c.Action,
 		Flags: []cli.Flag{
 			&cli.PathFlag{
 				Name:        "vlan-config",
-				Aliases:     []string{"config", "c"},
+				Aliases:     []string{"f"},
 				Usage:       "YAML config file to write to",
 				Required:    true,
 				Destination: &c.fConfigFile,
@@ -38,13 +38,13 @@ func (c *PrintIniCommand) Command() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "client",
+				Aliases:     []string{"c"},
 				Usage:       "print a client's INI; mutually exclusive with --server",
 				Destination: &c.fClientOutput,
 			},
 			&ChoicesFlag{
 				StringFlag: cli.StringFlag{
 					Name:        "format",
-					Aliases:     []string{"f"},
 					Usage:       "output format to use",
 					Destination: &c.fFormat,
 					Value:       "text",
