@@ -6,14 +6,12 @@ import (
 	"log"
 	"net"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/go-yaml/yaml"
 	"gopkg.in/ini.v1"
 )
 
-const DEFAULT_SERVER_NAME = "wg-vlan"
 const DEFAULT_LISTEN_PORT = 51820
 const DEFAULT_NETWORK = "10.20.30.1/24"
 const DEFAULT_KEEP_ALIVE = 25
@@ -159,14 +157,12 @@ func (vlan *VLAN) NewClientPublic(name string, publicKeyBase64 string) (*VLANCli
 }
 
 type VLANServer struct {
-	InterfaceName  string            `yaml:"interface"`
 	PeerName       string            `yaml:"peer_name"`
 	ListenPort     uint              `yaml:"listen_port"`
 	Network        string            `yaml:"network"`
 	PrivateKey     string            `yaml:"private_key"`
 	PublicKey      string            `yaml:"public_key"`
-	ConfigINIPath  string            `yaml:"ini_path"`
-	InterfaceExtra map[string]string `yaml:",inline"`
+	InterfaceExtra map[string]string `yaml:"extra"`
 }
 
 func (srv *VLANServer) EnsurePublicKey() (string, error) {
@@ -179,22 +175,6 @@ func (srv *VLANServer) EnsurePublicKey() (string, error) {
 	}
 	srv.PublicKey = KeyToBase64(key.PublicKey())
 	return srv.PublicKey, nil
-}
-
-func (srv *VLANServer) EnsurePath(yamlFile string) string {
-	if srv.ConfigINIPath != "" {
-		return srv.ConfigINIPath
-	}
-	srv.EnsureInterfaceName()
-	srv.ConfigINIPath = fmt.Sprintf("%s.conf", srv.InterfaceName)
-	return srv.ConfigINIPath
-}
-
-func (srv *VLANServer) EnsureInterfaceName() string {
-	if srv.InterfaceName == "" {
-		srv.InterfaceName = DEFAULT_SERVER_NAME
-	}
-	return srv.InterfaceName
 }
 
 func (srv VLANServer) Validate() (vWarnings []string, vError error) {
@@ -220,9 +200,6 @@ func (srv VLANServer) Validate() (vWarnings []string, vError error) {
 			vErrors = append(vErrors, fmt.Errorf("public key mismatch: got '%s', expected '%s'", srv.PublicKey, expectPublicKey))
 		}
 	}
-	if srv.ConfigINIPath == "" {
-		vWarnings = append(vWarnings, "config INI path unset")
-	}
 
 	if len(vErrors) > 0 {
 		vError = fmt.Errorf("validation failed: %w", errors.Join(vErrors...))
@@ -236,8 +213,7 @@ type VLANClient struct {
 	PrivateKey     string            `yaml:"private_key"`
 	PublicKey      string            `yaml:"public_key"`
 	PresharedKey   string            `yaml:"preshared_key"`
-	ConfigINIPath  string            `yaml:"ini_path"`
-	InterfaceExtra map[string]string `yaml:",inline"`
+	InterfaceExtra map[string]string `yaml:"extra"`
 }
 
 func (cl *VLANClient) EnsurePublicKey() (string, error) {
@@ -263,14 +239,6 @@ func (cl *VLANClient) EnsurePresharedKey() (string, error) {
 	cl.PresharedKey = KeyToBase64(key)
 	return cl.PresharedKey, nil
 
-}
-
-func (cl *VLANClient) EnsurePath(yamlFile string) string {
-	if cl.ConfigINIPath != "" {
-		return cl.ConfigINIPath
-	}
-	cl.ConfigINIPath = path.Join("wg-clients", fmt.Sprintf("%s.conf", cl.PeerName))
-	return cl.ConfigINIPath
 }
 
 func (cl VLANClient) CIDR() (net.IP, *net.IPNet, error) {
@@ -313,42 +281,11 @@ func (cl VLANClient) Validate() (vWarnings []string, vError error) {
 		vWarnings = append(vWarnings, "client preshared key unset; this is unsafe")
 	}
 
-	if cl.ConfigINIPath == "" {
-		vWarnings = append(vWarnings, "config INI path unset")
-	}
-
 	if len(vErrors) > 0 {
 		vError = fmt.Errorf("validation failed: %w", errors.Join(vErrors...))
 	}
 
 	return
-}
-
-func DefaultVLAN(yamlPath string) (*VLAN, error) {
-	privateKey, err := NewWireguardPrivateKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed generating new private key: %w", err)
-	}
-
-	vlan := &VLAN{
-		PublicEndpoint: "",
-		KeepAlive:      DEFAULT_KEEP_ALIVE,
-		Server: VLANServer{
-			PeerName:   DEFAULT_SERVER_NAME,
-			ListenPort: DEFAULT_LISTEN_PORT,
-			Network:    DEFAULT_NETWORK,
-			PrivateKey: KeyToBase64(privateKey),
-			PublicKey:  KeyToBase64(privateKey.PublicKey()),
-		},
-	}
-
-	vlan.Server.EnsureInterfaceName()
-	vlan.Server.EnsurePath(yamlPath)
-	if _, err := vlan.Server.EnsurePublicKey(); err != nil {
-		return nil, fmt.Errorf("failed generating public key: %w", err)
-	}
-
-	return vlan, nil
 }
 
 func (vlan VLAN) WriteTo(path string) error {

@@ -41,13 +41,6 @@ func (c *InitializeCommand) Command() *cli.Command {
 				Value:       DEFAULT_NETWORK,
 				Destination: &c.fNetwork,
 			},
-			&cli.StringFlag{
-				Name:        "interface",
-				Aliases:     []string{"i"},
-				Usage:       "name of the interface to use",
-				Value:       DEFAULT_SERVER_NAME,
-				Destination: &c.fInterface,
-			},
 			&cli.UintFlag{
 				Name:        "port",
 				Aliases:     []string{"p"},
@@ -84,7 +77,7 @@ func (c *InitializeCommand) Action(ctx *cli.Context) error {
 		if err != nil {
 			cLog.Fatalf("failed generating a private key: %v", err)
 		}
-		cLog.Printf("private=%s public=%s", KeyToBase64(pk), KeyToBase64(pk.PublicKey()))
+		cLog.Printf("generated new private key; public=%s", KeyToBase64(pk.PublicKey()))
 		c.fPrivateKey = KeyToBase64(pk)
 	}
 
@@ -92,25 +85,22 @@ func (c *InitializeCommand) Action(ctx *cli.Context) error {
 		PublicEndpoint: c.fEndpoint,
 		KeepAlive:      DEFAULT_KEEP_ALIVE,
 		Server: VLANServer{
-			InterfaceName: c.fInterface,
-			PeerName:      c.fInterface,
-			ListenPort:    c.fListenPort,
-			Network:       c.fNetwork,
-			PrivateKey:    c.fPrivateKey,
+			PeerName:   c.fInterface,
+			ListenPort: c.fListenPort,
+			Network:    c.fNetwork,
+			PrivateKey: c.fPrivateKey,
 		},
 	}
 
-	vlan.Server.EnsurePath(c.fConfigFile)
 	if _, err := vlan.Server.EnsurePublicKey(); err != nil {
 		cLog.Fatalf("error: %v", err)
 	}
 
 	for _, clientName := range c.fClients.Value() {
-		client, err := vlan.NewClient(clientName, "")
+		_, err := vlan.NewClient(clientName, "")
 		if err != nil {
 			cLog.Fatalf("error: %v", err)
 		}
-		client.EnsurePath(c.fConfigFile)
 	}
 
 	if err := vlan.WriteTo(c.fConfigFile); err != nil {
