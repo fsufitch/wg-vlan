@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"os"
+
 	"github.com/urfave/cli/v2"
 )
 
@@ -107,6 +110,10 @@ func (c *InitializeCommand) Action(ctx *cli.Context) error {
 		if err != nil {
 			cLog.Fatalf("error: %v", err)
 		}
+	}
+
+	if _, err := os.Stat(c.fConfigFile); !errors.Is(err, os.ErrNotExist) {
+		cLog.Fatalf("error: config already exists: %s", c.fConfigFile)
 	}
 
 	if err := vlan.WriteTo(c.fConfigFile); err != nil {
