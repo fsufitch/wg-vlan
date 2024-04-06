@@ -134,6 +134,6 @@ func (c *PrintIniCommand) printQR(ctx *cli.Context) error {
 	if err != nil {
 		cLog.Fatalf("error constructing QR: %s", err.Error())
 	}
-	fmt.Fprintln(ctx.App.Writer, qr.ToSmallString(true))
+	fmt.Fprintln(ctx.App.Writer, qr.ToSmallString(false))
 	return nil
 }
