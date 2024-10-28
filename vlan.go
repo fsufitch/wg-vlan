@@ -273,7 +273,7 @@ func (cl VLANClient) Validate() (vWarnings []string, vError error) {
 		expectPublicKey = KeyToBase64(privateKey.PublicKey())
 	}
 
-	if cl.PublicKey != "" && cl.PublicKey != expectPublicKey {
+	if cl.PublicKey != "" && cl.PrivateKey != "" && cl.PublicKey != expectPublicKey {
 		vErrors = append(vErrors, fmt.Errorf("client public key mismatch: got '%s', expected '%s'", cl.PublicKey, expectPublicKey))
 	}
 
